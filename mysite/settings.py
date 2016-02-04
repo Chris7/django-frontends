@@ -127,9 +127,12 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     # Uncomment the next line to enable the admin:
     'django.contrib.admin',
+    'rest_framework',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
-    'polls'
+    # local apps
+    'polls',
+
 )
 
 # A sample logging configuration. The only tangible logging
@@ -159,4 +162,15 @@ LOGGING = {
             'propagate': True,
         },
     }
+}
+
+
+# Django Rest Framework settings
+
+REST_FRAMEWORK = {
+    # Use Django's standard `django.contrib.auth` permissions,
+    # or allow read-only access for unauthenticated users.
+    'DEFAULT_PERMISSION_CLASSES': [
+
+    ]
 }

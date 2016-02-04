@@ -1,0 +1,232 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <script src="https://fb.me/react-0.14.7.js"></script>
+    <script src="https://fb.me/react-dom-0.14.7.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.23/browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+</head>
+<body>
+    <div id="content"></div>
+    <script type="text/babel">
+
+      var ChoiceList = React.createClass({
+          render: function() {
+              var poll_id = this.props.poll_id;
+                var choiceNodes = this.props.choices.map(function(choice) {
+                  return (
+                      <Choice choice={choice} poll={poll_id} >
+                      </Choice>
+                  );
+                });
+                return (
+                    <div className="choiceList">
+                        <ul>
+                            { choiceNodes }
+                        </ul>
+                    </div>
+                );
+            }
+      });
+
+      var Choice = React.createClass({
+          getInitialState: function(){
+            return {poll: '', vote: '', votes: this.props.choice.votes};
+          },
+          handleVote: function(e) {
+              e.preventDefault();
+              var vote_url = "{% url "polls:json_vote" %}";
+              $.ajax({
+                  url: vote_url,
+                  dataType: 'json',
+                  type: 'POST',
+                  cache: false,
+                  data: {poll: this.props.poll, vote: e.target.value, csrfmiddlewaretoken: "{{ csrf_token }}"},
+                  success: function(data) {
+                    this.setState({votes: data['votes']});
+                  }.bind(this),
+                  error: function(xhr, status, err) {
+                    console.error(vote_url, status, err.toString());
+                  }.bind(this)
+                });
+          },
+         render: function() {
+                return (
+                    <li className="choice">
+                        <input name="choice" type="button" value={this.props.choice.choice_text} onClick={this.handleVote} /> Votes: {this.state.votes}
+                    </li>
+                );
+            }
+      });
+
+      var PollBox = React.createClass({
+            getInitialState: function() {
+                return {data: []};
+            },
+            loadPollsFromServer: function() {
+                $.ajax({
+                  url: this.props.pollurl,
+                  dataType: 'json',
+                  cache: false,
+                  success: function(data) {
+                    this.setState({data: data});
+                  }.bind(this),
+                  error: function(xhr, status, err) {
+                    console.error(this.props.pollurl, status, err.toString());
+                  }.bind(this)
+                });
+            },
+            handlePollSubmit: function() {
+                  $.ajax({
+                      url: this.props.pollurl,
+                      dataType: 'json',
+                      type: 'POST',
+                      data: $('#pollForm').serialize(),
+                      success: function(data) {
+                        this.setState({data: this.state.data.concat(data)});
+                        // update the choices we have
+                        $('#id_poll').append('<option value="'+data.pk+'">'+data.question+'</option>');
+                      }.bind(this),
+                      error: function(xhr, status, err) {
+                        console.error(this.props.pollurl, status, err.toString());
+                      }.bind(this)
+                });
+            },
+            handleChoiceSubmit: function() {
+                  $.ajax({
+                      url: this.props.choiceurl,
+                      dataType: 'json',
+                      type: 'POST',
+                      data: $('#choiceForm').serialize(),
+                      success: function(data) {
+                          for(var i=0;i<this.state.data.length;i++){
+                              var poll_info = this.state.data[i];
+                              if(poll_info.pk == data.poll){
+                                  poll_info['choices'].push(data.choice_text);
+                              }
+                          }
+                        this.setState({data: this.state.data});
+                      }.bind(this),
+                      error: function(xhr, status, err) {
+                        console.error(this.props.choiceurl, status, err.toString());
+                      }.bind(this)
+                });
+            },
+            componentDidMount: function() {
+                this.loadPollsFromServer();
+                setInterval(this.loadPollsFromServer, this.props.pollInterval);
+            },
+            render: function() {
+                return (
+                     <div className="PollBox">
+                        <h1>Existing Polls</h1>
+                        <PollList data={this.state.data} />
+                        <PollForm onPollSubmit={this.handlePollSubmit} />
+                        <ChoiceForm onChoiceSubmit={this.handleChoiceSubmit} />
+                     </div>
+                );
+            }
+      });
+      var PollList = React.createClass({
+            render: function() {
+                var pollNodes = this.props.data.map(function(poll) {
+                  return (
+                    <Poll question={poll.question} choices={poll.choices} id={poll.pk}>
+
+                    </Poll>
+                  );
+                });
+                return (
+                    <div className="pollList">
+                        { pollNodes }
+                    </div>
+                );
+            }
+      });
+
+      var Poll = React.createClass({
+            render: function() {
+                return (
+                    <div className="poll">
+                        <h2 className="pollQuestion">
+                            {this.props.question}
+                        </h2>
+                        <h3>
+                            Choices:
+                        </h3>
+                        <ChoiceList choices={this.props.choices} poll_id={this.props.id} >
+                        </ChoiceList>
+                    </div>
+                );
+            }
+      });
+
+      var PollForm = React.createClass({
+            getInitialState: function() {
+                return {question: ''};
+              },
+              handleQuestionChange: function(e) {
+                this.setState({question: e.target.value});
+              },
+            handleSubmit: function(e) {
+                e.preventDefault();
+                var question = this.state.question.trim();
+                if (!question) {
+                  return;
+                }
+                this.props.onPollSubmit({question: question});
+                this.setState({question: ''});
+            },
+              render: function() {
+                return (
+                  <form id="pollForm" className="pollForm" action="{% url "api:poll-list" "json" %}" onSubmit={this.handleSubmit}>
+                          {% csrf_token %}
+                          {{ poll_form }}
+                    <input type="submit" value="Post" />
+                  </form>
+                );
+              }
+            });
+
+      var ChoiceForm = React.createClass({
+         getInitialState: function() {
+             return {poll: '', choice_text: ''};
+         },
+          handleChoice_TextChange: function(e) {
+              this.setState({choice_text: e.target.value});
+          },
+          handlePollChange: function(e) {
+              console.log('poll is now', e.target.value);
+              this.setState({poll: e.target.value});
+          },
+          handleSubmit: function(e) {
+              e.preventDefault();
+              var poll = this.state.poll.trim();
+              var choice = this.state.choice_text.trim();
+              if(!poll || !choice)
+                return;
+              this.props.onChoiceSubmit({poll: poll, choice_text: choice});
+              this.setState({poll: '', choice_text: ''});
+          },
+          render: function() {
+              return (
+                  <form id="choiceForm" className="choiceForm" action="{% url "api:choice-list" "json" %}" onSubmit={this.handleSubmit}>
+                          {% csrf_token %}
+                          {{ choice_form }}
+                    <input type="submit" value="Post" />
+                  </form>
+                );
+          }
+      });
+
+      ReactDOM.render(
+          <PollBox pollurl="{% url "api:poll-list" "json" %}" choiceurl="{% url "api:choice-list" "json" %}" pollInterval={2000} />,
+          document.getElementById('content')
+      );
+    </script>
+</body>
+
+</html>
