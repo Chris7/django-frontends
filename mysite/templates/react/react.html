@@ -105,7 +105,7 @@
                           for(var i=0;i<this.state.data.length;i++){
                               var poll_info = this.state.data[i];
                               if(poll_info.pk == data.poll){
-                                  poll_info['choices'].push(data.choice_text);
+                                  poll_info['choices'].push(data);
                               }
                           }
                         this.setState({data: this.state.data});
@@ -117,7 +117,7 @@
             },
             componentDidMount: function() {
                 this.loadPollsFromServer();
-                setInterval(this.loadPollsFromServer, this.props.pollInterval);
+                //setInterval(this.loadPollsFromServer, this.props.pollInterval);
             },
             render: function() {
                 return (
@@ -199,7 +199,6 @@
               this.setState({choice_text: e.target.value});
           },
           handlePollChange: function(e) {
-              console.log('poll is now', e.target.value);
               this.setState({poll: e.target.value});
           },
           handleSubmit: function(e) {
@@ -223,7 +222,7 @@
       });
 
       ReactDOM.render(
-          <PollBox pollurl="{% url "api:poll-list" "json" %}" choiceurl="{% url "api:choice-list" "json" %}" pollInterval={2000} />,
+          <PollBox pollurl="{% url "api:poll-list" "json" %}" choiceurl="{% url "api:choice-list" "json" %}" />,
           document.getElementById('content')
       );
     </script>
